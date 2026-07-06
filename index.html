@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム位置情報＆現在地住所・音声解説</title>
+    <link rel="stylesheet" href="style3.css">
+</head>
+<body>
+
+<div class="container">
+    <h2>リアルタイム位置情報</h2>
+    <p class="status" id="status">位置情報を取得中...</p>
+    
+    <div class="card-grid">
+        <div class="card">
+            <span class="card-label">緯度</span>
+            <span class="card-value" id="latitude">-</span>
+        </div>
+        <div class="card">
+            <span class="card-label">経度</span>
+            <span class="card-value" id="longitude">-</span>
+        </div>
+    </div>
+    
+    <div class="address-box">
+        <div class="address-label">現在地の住所</div>
+        <div class="address-value" id="address">位置情報を許可してください</div>
+    </div>
+
+    <div class="description-box">
+        <div class="description-label" id="description-title">場所の説明</div>
+        <div class="description-value" id="description-text">位置情報が確定すると、この地域の説明が表示され、音声で読み上げられます。</div>
+    </div>
+
+    <button id="refresh-btn" class="refresh-button">最新の状態に更新</button>
+</div>
+
+<script>
+    const statusText = document.getElementById('status');
+    const latText = document.getElementById('latitude');
+    const lngText = document.getElementById('longitude');
+    const addressText = document.getElementById('address');
+    const descriptionTitle = document.getElementById('description-title');
+    const descriptionText = document.getElementById('description-text');
+    const refreshBtn = document.getElementById('refresh-btn');
+
+    let lastLat = 0;
+    let lastLng = 0;
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+    };
+
+    if (!navigator.geolocation) {
+        statusText.textContent = "お使いのブラウザは位置情報に対応していません。";
+        statusText.classList.add('error');
+    } else {
+        navigator.geolocation.watchPosition(success, error, options);
+    }
+
+    function success(position) {
+        statusText.textContent = "位置情報を常時更新中";
+        statusText.className = "status success";
+        refreshBtn.classList.remove('loading');
+
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        latText.textContent = lat.toFixed(6);
+        lngText.textContent = lng.toFixed(6);
+
+        if (lastLat === 0 || Math.abs(lat - lastLat) > 0.0001 || Math.abs(lng - lastLng) > 0.0001) {
+            lastLat = lat;
+            lastLng = lng;
+            updateAddress(lat, lng);
+        }
+    }
+
+    // 緯度・経度から現在地の住所を取得する関数
+    async function updateAddress(lat, lng) {
+        addressText.textContent = "現在地を解析中...";
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=ja`;
+
+        try {
+            const response = await fetch(url, {
+                headers: { 'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8' }
+            });
+            if (!response.ok) throw new Error('Network error');
+            const data = await response.json();
+            
+            if (data && data.address) {
+                const addr = data.address;
+                const prefecture = addr.province || addr.prefecture || addr.state || ""; 
+                const city = addr.city || addr.town || addr.village || addr.city_district || ""; 
+                const suburb = addr.suburb || addr.neighbourhood || ""; 
+                const houseNumber = addr.house_number || ""; 
+
+                let fullAddress = `${prefecture}${city}${suburb}${houseNumber}`;
+                
+                if (!fullAddress && data.display_name) {
+                    fullAddress = data.display_name.replace(/, 日本$/, '').split(', ').reverse().join('');
+                }
+                addressText.textContent = fullAddress || "住所の詳細が取得できませんでした";
+
+                const searchKeyword = city || prefecture;
+                if (searchKeyword) {
+                    fetchLocationDescription(searchKeyword);
+                }
+            } else {
+                addressText.textContent = "現在地の住所が見つかりませんでした";
+            }
+        } catch (err) {
+            console.error(err);
+            addressText.textContent = "住所の取得に失敗しました";
+        }
+    }
+
+    // Wikipedia APIを使って場所の説明文を取得する関数
+    async function fetchLocationDescription(keyword) {
+        descriptionText.textContent = `${keyword}の解説を検索中...`;
+        const url = `https://ja.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=${encodeURIComponent(keyword)}&origin=*`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            const pages = data.query.pages;
+            const pageId = Object.keys(pages)[0];
+            
+            if (pageId !== "-1") {
+                const extract = pages[pageId].extract;
+                descriptionTitle.textContent = `${keyword} について`;
+                
+                // 画面表示用には長すぎるので200文字にカット
+                const shortText = extract.length > 200 ? extract.substr(0, 200) + "..." : extract;
+                descriptionText.textContent = shortText;
+
+                // 追加：音声読み上げの実行（読み上げはカット前の綺麗な文章で行います）
+                speakText(`${keyword}について説明します。${extract}`);
+            } else {
+                const failedText = `${keyword}に関する詳しい説明文が見つかりませんでした。`;
+                descriptionText.textContent = failedText;
+                speakText(failedText);
+            }
+        } catch (err) {
+            console.error(err);
+            descriptionText.textContent = "説明文の取得に失敗しました。";
+        }
+    }
+
+    // 追加：Web Speech APIによる音声合成（読み上げ）関数
+    function speakText(text) {
+        // すでに別の文章を喋っている場合は、一旦完全に停止する（声の重なり防止）
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+
+        // 喋らせたいテキストと言語（日本語）を設定
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ja-JP'; 
+        utterance.rate = 1.0;  // 読み上げスピード（0.5 〜 2.0 で調節可能）
+        utterance.pitch = 1.0; // 声の高さ（0.5 〜 2.0 で調節可能）
+
+        // 音声ボックス（description-box）に喋っている間の視覚的エフェクトをつける
+        const box = document.querySelector('.description-box');
+        utterance.onstart = () => box.classList.add('speaking');
+        utterance.onend = () => box.classList.remove('speaking');
+        utterance.onerror = () => box.classList.remove('speaking');
+
+        // 読み上げを開始
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function error(err) {
+        statusText.className = "status error";
+        refreshBtn.classList.remove('loading');
+    }
+
+    refreshBtn.addEventListener('click', () => {
+        statusText.textContent = "手動で最新情報を取得中...";
+        statusText.className = "status";
+        refreshBtn.classList.add('loading');
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                lastLat = 0; 
+                lastLng = 0;
+                success(position);
+            }, 
+            error, 
+            options
+        );
+    });
+</script>
+
+</body>
+</html>
