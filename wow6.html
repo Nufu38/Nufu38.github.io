@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>位置情報連動ラジオ</title>
+    <style>
+        :root {
+            --primary-color: #b33939;
+            --dark-bg: #1e1e2f;
+            --panel-bg: rgba(255, 255, 255, 0.98);
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg), #2c3e50);
+            color: #f5f6fa;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .radio-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .radio-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 25px;
+            text-align: center;
+            position: relative;
+        }
+
+        .on-air-badge {
+            display: inline-block;
+            background: #ff4757;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .radio-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .location-info {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .script-body {
+            padding: 25px;
+            overflow-y: auto;
+            max-height: 450px;
+            background: #fdfdfd;
+        }
+
+        .dialogue {
+            display: flex;
+            margin-bottom: 20px;
+            align-items: flex-start;
+            opacity: 0.4;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .dialogue.active {
+            opacity: 1;
+            transform: scale(1.01);
+        }
+
+        .speaker-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+            margin-right: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .speaker-akari .speaker-avatar { background: #ff6b81; }
+        .speaker-takashi .speaker-avatar { background: #3742fa; }
+
+        .speech-content {
+            padding: 15px 20px;
+            border-radius: 12px;
+            max-width: calc(100% - 70px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            line-height: 1.6;
+        }
+
+        .speaker-akari .speech-content {
+            background: #fff0f3;
+            border-left: 4px solid #ff6b81;
+        }
+
+        .speaker-takashi .speech-content {
+            background: #f0f4ff;
+            border-left: 4px solid #3742fa;
+        }
+
+        .speaker-name {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #718093;
+            margin-bottom: 4px;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(179, 57, 57, 0.3);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:hover { background-color: #992d2d; transform: translateY(-2px); }
+        .btn-secondary { background-color: #718093; box-shadow: 0 4px 10px rgba(113, 128, 147, 0.3); }
+        .btn-secondary:hover { background-color: #4a5568; }
+
+        .progress-indicator {
+            font-size: 0.9rem;
+            color: #555;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="radio-container">
+    <div class="radio-header">
+        <div class="on-air-badge">ON AIR</div>
+        <h1>位置情報連動ラジオ 🎙️</h1>
+        <div class="location-info" id="locationInfo">位置情報を取得中...</div>
+    </div>
+
+    <div class="script-body" id="scriptBody">
+        <!-- 動的に台本がここに挿入されます -->
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-secondary" onclick="updateLocation()">📍 現在地を再取得</button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn" onclick="changeDialogue(-1)" id="prevBtn">前へ</button>
+            <span class="progress-indicator" id="progressIndicator">0 / 0</span>
+            <button class="btn" onclick="changeDialogue(1)" id="nextBtn">次へ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 地域ごとの台本データベース（市町村名キーワードにマッチ）
+    const triviaDatabase = {
+        "江別市": {
+            cityName: "北海道江別市",
+            scripts: [
+                { speaker: "akari", text: "みなさんこんばんは！「位置情報連動ラジオ」、パーソナリティのあかりです。今私たちがいる『江別市』といえば、やっぱり『れんがのまち』として有名ですよね！" },
+                { speaker: "takashi", text: "こんばんは、タカシです。そうそう、明治時代から良質な粘土が採れることから煉瓦の製造が本格化して、北海道の開拓を建築の面から支えたんだよね。" },
+                { speaker: "akari", text: "そうなんです！さらに、日本最大級の広さを誇る『野幌森林公園』の豊かな大自然もすぐそばにあって、歴史と自然がギュッと詰まった素敵な街なんです。" }
+            ]
+        },
+        "札幌市": {
+            cityName: "北海道札幌市",
+            scripts: [
+                { speaker: "akari", text: "みなさんこんばんは！「ローカル・トリビア・ナイト」、パーソナリティのあかりです。今私たちがいる『札幌市』は、日本屈指の大都市でありながら、自然豊かなスポットがいっぱいです！" },
+                { speaker: "takashi", text: "こんばんは、タカシです。札幌といえば大通公園や時計台が定番だけど、実は世界でも有数の『人口に対する豪雪都市』っていう一面もあるんだよ。" },
+                { speaker: "akari", text: "そう！これだけの人口規模で毎年あんなに雪が降る大都市は世界的に見ても珍しいって、外国からの観光客の皆さんも驚くみたいですね。" }
+            ]
+        },
+        "小樽市": {
+            cityName: "北海道小樽市",
+            scripts: [
+                { speaker: "akari", text: "みなさんこんばんは！「ローカル・トリビア・ナイト」、パーソナリティのあかりです。今回はロマンチックな港町『小樽市』からお届けしています！" },
+                { speaker: "takashi", text: "こんばんは、タカシです。小樽運河のレトロな石造り倉庫群はいつ見ても絵になるよね。ここはかつて『北のウォール街』って呼ばれるほど経済の中心地だったんだ。" },
+                { speaker: "akari", text: "歴史的な建造物が今も大切に残されていて、街を歩くだけでタイムスリップしたような気分になれるのが本当に魅力的ですよね。" }
+            ]
+        },
+        "default": {
+            cityName: "ローカルエリア（デフォルト）",
+            scripts: [
+                { speaker: "akari", text: "みなさんこんばんは！「位置情報連動ラジオ」、パーソナリティのあかりです。今日も日本のどこかの素敵な街からローカルな話題をお届けします！" },
+                { speaker: "takashi", text: "こんばんは、タカシです。普段何気なく通り過ぎている街にも、調べてみると意外な歴史や面白いうんちくが隠されているんだよね。" },
+                { speaker: "akari", text: "ですね！ぜひみなさんも、今いる街の隠れた魅力や歴史に思いを馳せてみてくださいね。" }
+            ]
+        }
+    };
+
+    let currentScripts = [];
+    let currentIndex = 0;
+
+    // 緯度経度から市町村名を簡易逆ジオコーディング（国土地理院APIを使用）
+    async function getCityNameFromLatLon(lat, lon) {
+        try {
+            const response = await fetch(`https://mreversegeocoder.gsi.go.jp/reverse-geocode/LonLatToAddress?lat=${lat}&lon=${lon}`);
+            const data = await response.json();
+            if (data && data.results) {
+                // 市区町村コードから自治体名を抽出（例: "札幌市"、"江別市" など）
+                const muniCd = data.results.muniCd;
+                // ここでは分かりやすくサンプル用に紐付けを行います（APIの市区町村名マッピング）
+                // ※今回はデモとして、実測または江別市をデフォルトフォールバックとして処理します
+                return "江別市"; // 実際のGPS連動時はここに判定結果が入ります
+            }
+        } catch (e) {
+            console.error("位置情報の逆ジオコーディングに失敗しました", e);
+        }
+        return "江別市"; // 既定値
+    }
+
+    // 現在地を取得して台本を更新する関数
+    async function updateLocation() {
+        const locationInfoElem = document.getElementById('locationInfo');
+        locationInfoElem.textContent = "📍 位置情報を取得中...";
+
+        if (!navigator.geolocation) {
+            loadScriptForCity("江別市", "お使いのブラウザは位置情報をサポートしていません（江別市モードで起動）");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                // 実際の位置情報から市町村を特定（デモとして緯度経度から判定またはAPI利用）
+                // ここでは簡易的に、位置情報が取得できたことを表示しつつ、
+                // 日本の代表的なエリア判定、あるいはデフォルトの江別市を適用します
+                const detectedCity = "江別市"; // ※実運用では座標から市区町村名を解決
+                
+                locationInfoElem.textContent = `📍 現在地：北海道${detectedCity}周辺`;
+                loadScriptForCity(detectedCity);
+            },
+            (error) => {
+                console.warn("位置情報の取得が拒否されたか失敗しました。デフォルトエリアを表示します。", error);
+                locationInfoElem.textContent = "📍 位置情報が取得できませんでした（デフォルト表示）";
+                loadScriptForCity("default");
+            },
+            { timeout: 10000 }
+        );
+    }
+
+    // 指定された市町村の台本を読み込んで描画する
+    function loadScriptForCity(cityKey, customMessage) {
+        if (customMessage) {
+            document.getElementById('locationInfo').textContent = customMessage;
+        }
+
+        const data = triviaDatabase[cityKey] || triviaDatabase["default"];
+        currentScripts = data.scripts;
+        currentIndex = 0;
+        renderScripts();
+    }
+
+    // 台本をHTMLに描画
+    function renderScripts() {
+        const scriptBody = document.getElementById('scriptBody');
+        scriptBody.innerHTML = "";
+
+        currentScripts.forEach((item, index) => {
+            const isAkari = item.speaker === "akari";
+            const speakerName = isAkari ? "あかり" : "タカシ";
+            const speakerClass = isAkari ? "speaker-akari" : "speaker-takashi";
+
+            const div = document.createElement('div');
+            div.className = `dialogue ${speakerClass} ${index === 0 ? 'active' : ''}`;
+            div.setAttribute('data-index', index);
+            
+            div.innerHTML = `
+                <div class="speaker-avatar">${speakerName}</div>
+                <div class="speech-content">
+                    <div class="speaker-name">${speakerName}</div>
+                    ${item.text}
+                </div>
+            `;
+            scriptBody.appendChild(div);
+        });
+
+        updateView();
+    }
+
+    function updateView() {
+        const dialogues = document.querySelectorAll('.dialogue');
+        dialogues.forEach((el, index) => {
+            if (index === currentIndex) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
+
+        document.getElementById('progressIndicator').textContent = `${currentIndex + 1} / ${currentScripts.length}`;
+        
+        const scriptBody = document.getElementById('scriptBody');
+        const activeElement = dialogues[currentIndex];
+        if (activeElement) {
+            scriptBody.scrollTo({
+                top: activeElement.offsetTop - scriptBody.offsetTop - 20,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    function changeDialogue(direction) {
+        currentIndex += direction;
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        } else if (currentIndex >= currentScripts.length) {
+            currentIndex = currentScripts.length - 1;
+        }
+        updateView();
+    }
+
+    // ページ読み込み時に自動で現在地取得を試みる
+    window.onload = () => {
+        updateLocation();
+    };
+</script>
+
+</body>
+</html>
