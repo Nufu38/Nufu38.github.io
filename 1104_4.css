@@ -1,0 +1,38 @@
+@charset "UTF-8";
+
+/* ページの背景グラデーションと最小高さの設定 */
+body {
+  background: linear-gradient(135deg, #e6f2ff 0%, #f0f7ff 50%, #eef5e6 100%);
+  min-height: 100vh;
+}
+
+/* すりガラス風（グラスモーフィズム）のデザインクラス */
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* 再生中のセリフカード強調用クラス */
+.dialogue-active {
+  transform: scale(1.01);
+  box-shadow: 0 4px 20px rgba(49, 130, 206, 0.2);
+}
+
+/* カスタムスクロールバーの設定 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(49, 130, 206, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(49, 130, 206, 0.6);
+}
