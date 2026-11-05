@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1106_X09A</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Tailwind Custom Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Zen Maru Gothic"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            hokkaido: {
+              snow: '#F7FAFC',
+              ice: '#EBF8FF',
+              sky: '#3182CE',
+              deep: '#1A365D',
+              accent: '#DD6B20',
+              forest: '#2F855A'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- スタイル定義（CSS） -->
+  <style>
+    @charset "UTF-8";
+
+    /* ページの背景グラデーションと最小高さの設定 */
+    body {
+      background: linear-gradient(135deg, #e6f2ff 0%, #f0f7ff 50%, #eef5e6 100%);
+      min-height: 100vh;
+    }
+
+    /* すりガラス風（グラスモーフィズム）のデザインクラス */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    /* 再生中のセリフカード強調用クラス */
+    .dialogue-active {
+      transform: scale(1.01);
+      box-shadow: 0 4px 20px rgba(49, 130, 206, 0.2);
+    }
+
+    /* カスタムスクロールバーの設定 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(49, 130, 206, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(49, 130, 206, 0.6);
+    }
+  </style>
+</head>
+<body class="font-sans text-gray-800 pb-16">
+
+  <!-- ヘッダー部分：アプリのタイトルと概要を表示 -->
+  <header class="w-full bg-hokkaido-deep text-white py-6 px-4 shadow-lg sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-hokkaido-accent flex items-center justify-center text-xl text-white shadow">
+          <i class="fa-solid font-bold fa-radio"></i>
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold tracking-wide">北海道ご当地ドライブラジオ</h1>
+          <p class="text-xs text-blue-200">AI対話で巡る北海道市町村ナビゲーション</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs bg-white/10 px-3 py-1.5 rounded-full border border-white/20">
+        <i class="fa-solid fa-microphone-lines text-hokkaido-accent animate-pulse"></i>
+        <span>2パーソナリティ音声ガイド</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- メインコンテンツコンテナ -->
+  <main class="max-w-5xl mx-auto px-4 mt-6 space-y-6">
+
+    <!-- 進捗ステップインジケーター -->
+    <div class="grid grid-cols-3 gap-2 text-center text-xs md:text-sm font-bold">
+      <div id="step-1-badge" class="py-2.5 rounded-xl border-2 border-hokkaido-sky bg-hokkaido-sky text-white transition-all shadow-sm">
+        1. 位置情報・市町村
+      </div>
+      <div id="step-2-badge" class="py-2.5 rounded-xl border-2 border-gray-200 bg-white text-gray-400 transition-all">
+        2. 原稿の生成
+      </div>
+      <div id="step-3-badge" class="py-2.5 rounded-xl border-2 border-gray-200 bg-white text-gray-400 transition-all">
+        3. ラジオ読み上げ
+      </div>
+    </div>
+
+    <!-- ステップ1: 対象の市町村を設定するセクション -->
+    <section class="glass-card rounded-2xl p-6 transition-all duration-300">
+      <h2 class="text-lg font-bold text-hokkaido-deep mb-4 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-hokkaido-sky text-white text-xs flex items-center justify-center font-bold">1</span>
+        対象の市町村を設定
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- 手動入力フォーム -->
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">市町村名を入力</label>
+          <div class="flex gap-2">
+            <input type="text" id="municipality-input" placeholder="例: 東川町, 札幌市, 函館市" 
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-hokkaido-sky focus:border-transparent text-gray-800">
+            <button id="set-manual-btn" class="px-4 py-2.5 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-800 transition active:scale-95 text-sm whitespace-nowrap">
+              決定
+            </button>
+          </div>
+        </div>
+
+        <!-- GPS現在地取得ボタン -->
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">現在地から自動取得</label>
+          <button id="geolocation-btn" class="w-full py-2.5 px-4 bg-hokkaido-sky hover:bg-blue-600 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-sm active:scale-95">
+            <i class="fa-solid fa-location-crosshairs text-lg"></i>
+            <span>GPSで現在地の市町村を取得</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 現在選択中の地域ステータス -->
+      <div id="location-status" class="mt-4 p-3 rounded-xl bg-hokkaido-ice border border-blue-100 flex items-center justify-between text-sm">
+        <div class="flex items-center gap-2 text-hokkaido-deep">
+          <i class="fa-solid fa-map-pin text-hokkaido-accent"></i>
+          <span>選択中の地域: <strong id="selected-municipality" class="text-lg text-hokkaido-accent ml-1">未選択 (例: 東川町)</strong></span>
+        </div>
+        <span id="geo-loading-spinner" class="hidden text-hokkaido-sky animate-spin">
+          <i class="fa-solid fa-circle-notch"></i>
+        </span>
+      </div>
+    </section>
+
+    <!-- ステップ2: Gemini API設定と台本生成セクション -->
+    <section class="glass-card rounded-2xl p-6 transition-all duration-300">
+      <h2 class="text-lg font-bold text-hokkaido-deep mb-4 flex items-center gap-2">
+        <span class="w-7 h-7 rounded-full bg-hokkaido-sky text-white text-xs flex items-center justify-center font-bold">2</span>
+        Gemini API 設定 &amp; 対話スクリプト生成
+      </h2>
+
+      <div class="space-y-4">
+        <!-- APIキー入力 -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">
+            Gemini API Key
+            <span class="text-xs text-gray-400 font-normal ml-2">(ブラウザのローカルストレージに保持されます)</span>
+          </label>
+          <div class="relative">
+            <input type="password" id="api-key-input" placeholder="AIzaSy..." 
+              class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-hokkaido-sky focus:border-transparent text-sm pr-10">
+            <button id="toggle-key-visibility" class="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 話者設定＆テーマ選択 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">話者の役割設定</label>
+            <div class="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-600 space-y-1">
+              <div><strong class="text-hokkaido-sky">ナビゲーターA:</strong> 北海道に詳しい物知りガイド</div>
+              <div><strong class="text-hokkaido-accent">パートナーB:</strong> 好奇心旺盛なドライブ旅行者</div>
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">原稿の重視テーマ</label>
+            <select id="script-theme" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-hokkaido-sky text-sm">
+              <option value="観光スポットとグルメ情報">観光スポット &amp; グルメ中心</option>
+              <option value="歴史とご当地雑学トリビア">歴史 &amp; ディープな雑学トリビア</option>
+              <option value="ドライブ・自然景観と穴場情報">ドライブ景観 &amp; 絶景スポット</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 生成ボタン -->
+        <button id="generate-script-btn" class="w-full py-3.5 bg-gradient-to-r from-hokkaido-sky to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 active:scale-98">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Geminiで5分間の対話原稿を生成する</span>
+        </button>
+
+        <!-- ローディング状態表示 -->
+        <div id="generation-status" class="hidden p-4 rounded-xl bg-blue-50 border border-blue-200 text-center space-y-2">
+          <div class="inline-block animate-spin text-hokkaido-sky text-2xl">
+            <i class="fa-solid fa-compact-disc"></i>
+          </div>
+          <p class="text-sm font-semibold text-hokkaido-deep">AIパーソナリティがラジオ原稿を執筆中...</p>
+          <p class="text-xs text-gray-500">市町村の歴史・名物・見どころを調べてスクリプトを構成しています（約10〜20秒）</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ステップ3: ラジオ音声再生コントロール・台本表示セクション -->
+    <section class="glass-card rounded-2xl p-6 transition-all duration-300 space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-hokkaido-deep flex items-center gap-2">
+            <span class="w-7 h-7 rounded-full bg-hokkaido-sky text-white text-xs flex items-center justify-center font-bold">3</span>
+            ラジオ音声再生コントロール
+          </h2>
+          <p class="text-xs text-gray-500 mt-0.5">Web Speech APIを利用し、2つの音声パラメータを交互に切り替えて読み上げます</p>
+        </div>
+
+        <!-- コントロールボタン -->
+        <div class="flex items-center gap-2">
+          <button id="play-btn" disabled class="px-4 py-2 bg-hokkaido-forest text-white font-bold rounded-xl shadow hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2 text-sm">
+            <i class="fa-solid fa-play"></i> 再生
+          </button>
+          <button id="pause-btn" disabled class="px-3 py-2 bg-yellow-500 text-white font-bold rounded-xl shadow hover:bg-yellow-600 disabled:opacity-40 disabled:cursor-not-allowed transition text-sm">
+            <i class="fa-solid fa-pause"></i> 一時停止
+          </button>
+          <button id="stop-btn" disabled class="px-3 py-2 bg-red-500 text-white font-bold rounded-xl shadow hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition text-sm">
+            <i class="fa-solid fa-stop"></i> 停止
+          </button>
+        </div>
+      </div>
+
+      <!-- 音声カスタマイズパネル -->
+      <details class="bg-gray-50 rounded-xl p-3 border text-xs text-gray-600">
+        <summary class="font-bold cursor-pointer text-hokkaido-sky flex items-center gap-1">
+          <i class="fa-solid fa-sliders"></i> 音声カスタマイズ（声質・ピッチの微調整）
+        </summary>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+          <!-- 話者Aチューニング -->
+          <div class="p-2 bg-white rounded-lg border space-y-2">
+            <div class="font-bold text-hokkaido-sky flex justify-between">
+              <span>A: ナビゲーター (低めの落ち着いた声)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="w-12">ピッチ:</label>
+              <input type="range" id="pitch-a" min="0.5" max="1.5" step="0.1" value="0.9" class="w-full">
+              <span id="pitch-a-val">0.9</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="w-12">速度:</label>
+              <input type="range" id="rate-a" min="0.7" max="1.4" step="0.1" value="1.0" class="w-full">
+              <span id="rate-a-val">1.0</span>
+            </div>
+          </div>
+          <!-- 話者Bチューニング -->
+          <div class="p-2 bg-white rounded-lg border space-y-2">
+            <div class="font-bold text-hokkaido-accent flex justify-between">
+              <span>B: パートナー (明るめのハキハキした声)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="w-12">ピッチ:</label>
+              <input type="range" id="pitch-b" min="0.5" max="1.8" step="0.1" value="1.3" class="w-full">
+              <span id="pitch-b-val">1.3</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="w-12">速度:</label>
+              <input type="range" id="rate-b" min="0.7" max="1.4" step="0.1" value="1.1" class="w-full">
+              <span id="rate-b-val">1.1</span>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- 進捗バー -->
+      <div class="space-y-1">
+        <div class="flex justify-between text-xs text-gray-500 font-semibold">
+          <span>進捗状況</span>
+          <span id="progress-text">0 / 0 行</span>
+        </div>
+        <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+          <div id="progress-bar" class="bg-hokkaido-sky h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- 台本一覧エリア -->
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">ラジオスクリプト一覧</span>
+          <span id="script-line-count" class="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-bold">0 行</span>
+        </div>
+        
+        <div id="dialogue-container" class="max-h-[450px] overflow-y-auto space-y-3 p-4 bg-gray-50/80 rounded-xl border border-gray-200">
+          <div class="text-center text-gray-400 py-12 text-sm">
+            <i class="fa-solid fa-scroll text-3xl mb-2 text-gray-300 block"></i>
+            Geminiで原稿を生成すると、ここにスクリプトが表示されます。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 自動保存・利用ログセクション -->
+    <section class="glass-card rounded-2xl p-6 space-y-3">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-bold text-hokkaido-deep">利用ログ・自動保存</h2>
+          <p class="text-xs text-gray-500 mt-1">日時・取得したGPS座標・市町村・原稿・読み上げ操作を、このブラウザ内に自動保存します。</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="export-logs-btn" class="px-3 py-2 bg-hokkaido-sky text-white rounded-lg text-sm font-bold">ログを書き出す（JSON）</button>
+          <button id="export-csv-btn" class="px-3 py-2 bg-gray-700 text-white rounded-lg text-sm font-bold">一覧CSV</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+        <div class="bg-white/80 border rounded-lg p-3">保存セッション数：<strong id="log-session-count">0</strong></div>
+        <div class="bg-white/80 border rounded-lg p-3">現在のGPS：<strong id="log-gps-status">未取得</strong></div>
+        <div class="bg-white/80 border rounded-lg p-3">保存状態：<strong id="log-save-status">準備中</strong></div>
+      </div>
+      <p class="text-xs text-gray-500">※保存データはこの端末・このブラウザ内に保存されます。ブラウザのデータ削除や端末変更で失われる場合があるため、必要に応じてJSONを書き出してください。</p>
+      <p class="text-xs text-gray-500">※現在のWeb Speech APIは読み上げ音声そのものを音声ファイルとして取り出せません。そのため、音声ファイルではなく、読み上げ開始・一時停止・再開・終了・行番号などの音声再生ログを保存します。</p>
+    </section>
+
+  </main>
+
+  <!-- トースト通知モーダル -->
+  <div id="toast-modal" class="fixed bottom-6 right-6 hidden z-50 transition-all transform translate-y-4">
+    <div id="toast-content" class="px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm flex items-center gap-3">
+      <i id="toast-icon" class="fa-solid fa-info-circle"></i>
+      <span id="toast-message">通知メッセージ</span>
+    </div>
+  </div>
+
+  <!-- スクリプト定義（JavaScript） -->
+  <script>
+    // --- 状態管理変数 ---
+    let currentMunicipality = '東川町';
+    let scriptLines = []; 
+    let currentLineIndex = 0;
+    let isSpeaking = false;
+    let isPaused = false;
+    let isGenerating = false; // 重複生成防止用フラグ
+    let speechSynth = window.speechSynthesis;
+    let currentUtterance = null;
+
+    // --- 自動保存・ログ機能（IndexedDB） ---
+    const LOG_DB_NAME = 'hokkaido_radio_logs';
+    const LOG_STORE_NAME = 'sessions';
+    let logDb = null;
+    let activeSessionId = null;
+    let latestGps = null;
+    let currentRawScript = '';
+
+    function updateLogStatus(message, isError = false) {
+      const el = document.getElementById('log-save-status');
+      if (el) {
+        el.textContent = message;
+        el.className = isError ? 'text-red-600' : 'text-green-700';
+      }
+    }
+
+    function openLogDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+          reject(new Error('このブラウザはIndexedDBに対応していません'));
+          return;
+        }
+        const request = indexedDB.open(LOG_DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(LOG_STORE_NAME)) {
+            db.createObjectStore(LOG_STORE_NAME, { keyPath: 'id' });
+          }
+        };
+        request.onsuccess = () => {
+          logDb = request.result;
+          resolve(logDb);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function dbRequest(mode, action) {
+      return new Promise((resolve, reject) => {
+        if (!logDb) return reject(new Error('保存データベースが未初期化です'));
+        const tx = logDb.transaction(LOG_STORE_NAME, mode);
+        const store = tx.objectStore(LOG_STORE_NAME);
+        const request = action(store);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function getAllSessions() {
+      return dbRequest('readonly', store => store.getAll());
+    }
+
+    async function saveCurrentSession(eventName, details = {}) {
+      if (!activeSessionId || !logDb) return;
+      try {
+        const all = await getAllSessions();
+        let session = all.find(item => item.id === activeSessionId);
+        if (!session) {
+          session = {
+            id: activeSessionId,
+            createdAt: new Date().toISOString(),
+            municipality: currentMunicipality,
+            gps: latestGps,
+            theme: scriptThemeSelect.value,
+            script: [],
+            rawScript: '',
+            audioFile: null,
+            events: []
+          };
+        }
+        session.updatedAt = new Date().toISOString();
+        session.municipality = currentMunicipality;
+        session.gps = latestGps || session.gps || null;
+        session.theme = scriptThemeSelect.value;
+        session.script = scriptLines.map(line => ({ speaker: line.speaker, text: line.text }));
+        session.rawScript = currentRawScript || session.rawScript || '';
+        session.events.push({
+          at: new Date().toISOString(),
+          event: eventName,
+          lineIndex: currentLineIndex,
+          details
+        });
+        await dbRequest('readwrite', store => store.put(session));
+        updateLogStatus('自動保存済み');
+        refreshLogCount();
+      } catch (error) {
+        console.error('ログ保存エラー:', error);
+        updateLogStatus('保存エラー', true);
+      }
+    }
+
+    async function refreshLogCount() {
+      try {
+        const sessions = await getAllSessions();
+        const el = document.getElementById('log-session-count');
+        if (el) el.textContent = sessions.length;
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    async function exportLogs() {
+      try {
+        const sessions = await getAllSessions();
+        const blob = new Blob([JSON.stringify(sessions, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, `hokkaido-radio-logs-${new Date().toISOString().slice(0,10)}.json`);
+        showToast(`${sessions.length}件のログを書き出しました`, 'success');
+      } catch (error) {
+        showToast('ログの書き出しに失敗しました', 'error');
+      }
+    }
+
+    async function exportLogsCsv() {
+      try {
+        const sessions = await getAllSessions();
+        const quote = value => '"' + String(value ?? '').replace(/"/g, '""') + '"';
+        const rows = [['ID','作成日時','更新日時','市町村','緯度','経度','テーマ','原稿行数','イベント数']];
+        sessions.forEach(s => rows.push([
+          s.id, s.createdAt, s.updatedAt, s.municipality,
+          s.gps?.latitude ?? '', s.gps?.longitude ?? '', s.theme,
+          s.script?.length ?? 0, s.events?.length ?? 0
+        ]));
+        const csv = '\uFEFF' + rows.map(row => row.map(quote).join(',')).join('\r\n');
+        downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+          `hokkaido-radio-log-index-${new Date().toISOString().slice(0,10)}.csv`);
+        showToast('CSVを書き出しました', 'success');
+      } catch (error) {
+        showToast('CSVの書き出しに失敗しました', 'error');
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    openLogDatabase()
+      .then(() => {
+        updateLogStatus('自動保存有効');
+        refreshLogCount();
+      })
+      .catch(error => {
+        console.error(error);
+        updateLogStatus('利用不可', true);
+      });
+
+    document.getElementById('export-logs-btn').addEventListener('click', exportLogs);
+    document.getElementById('export-csv-btn').addEventListener('click', exportLogsCsv);
+
+    // --- DOM Elements ---
+    const municipalityInput = document.getElementById('municipality-input');
+    const setManualBtn = document.getElementById('set-manual-btn');
+    const geolocationBtn = document.getElementById('geolocation-btn');
+    const selectedMunicipalityEl = document.getElementById('selected-municipality');
+    const geoSpinner = document.getElementById('geo-loading-spinner');
+
+    const apiKeyInput = document.getElementById('api-key-input');
+    const toggleKeyBtn = document.getElementById('toggle-key-visibility');
+    const generateBtn = document.getElementById('generate-script-btn');
+    const generationStatus = document.getElementById('generation-status');
+    const scriptThemeSelect = document.getElementById('script-theme');
+
+    const dialogueContainer = document.getElementById('dialogue-container');
+    const playBtn = document.getElementById('play-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const scriptLineCount = document.getElementById('script-line-count');
+
+    const pitchA = document.getElementById('pitch-a');
+    const rateA = document.getElementById('rate-a');
+    const pitchB = document.getElementById('pitch-b');
+    const rateB = document.getElementById('rate-b');
+
+    // --- Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('hokkaido_gemini_key') || '';
+      if (savedKey) {
+        apiKeyInput.value = savedKey;
+      }
+
+      updateSelectedMunicipality('東川町');
+
+      ['a', 'b'].forEach(v => {
+        ['pitch', 'rate'].forEach(p => {
+          const el = document.getElementById(`${p}-${v}`);
+          const display = document.getElementById(`${p}-${v}-val`);
+          if (el && display) {
+            el.addEventListener('input', (e) => display.textContent = e.target.value);
+          }
+        });
+      });
+    });
+
+    // --- Toast Notification ---
+    function showToast(message, type = 'info') {
+      const toastModal = document.getElementById('toast-modal');
+      const toastContent = document.getElementById('toast-content');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMessage.textContent = message;
+
+      if (type === 'error') {
+        toastContent.className = 'px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm flex items-center gap-3 bg-red-600';
+        toastIcon.className = 'fa-solid fa-triangle-exclamation';
+      } else if (type === 'success') {
+        toastContent.className = 'px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm flex items-center gap-3 bg-green-600';
+        toastIcon.className = 'fa-solid fa-circle-check';
+      } else {
+        toastContent.className = 'px-5 py-3 rounded-xl shadow-xl text-white font-semibold text-sm flex items-center gap-3 bg-hokkaido-deep';
+        toastIcon.className = 'fa-solid fa-circle-info';
+      }
+
+      toastModal.classList.remove('hidden', 'translate-y-4');
+      setTimeout(() => {
+        toastModal.classList.add('translate-y-4', 'hidden');
+      }, 4000);
+    }
+
+    toggleKeyBtn.addEventListener('click', () => {
+      const isPassword = apiKeyInput.type === 'password';
+      apiKeyInput.type = isPassword ? 'text' : 'password';
+      toggleKeyBtn.innerHTML = isPassword ? '<i class="fa-solid fa-eye-slash"></i>' : '<i class="fa-solid fa-eye"></i>';
+    });
+
+    apiKeyInput.addEventListener('change', () => {
+      localStorage.setItem('hokkaido_gemini_key', apiKeyInput.value.trim());
+    });
+
+    // --- Municipality Handlers ---
+    function updateSelectedMunicipality(name) {
+      currentMunicipality = name.trim();
+      selectedMunicipalityEl.textContent = currentMunicipality;
+      municipalityInput.value = currentMunicipality;
+    }
+
+    setManualBtn.addEventListener('click', () => {
+      const val = municipalityInput.value.trim();
+      if (!val) {
+        showToast('市町村名を入力してください', 'error');
+        return;
+      }
+      updateSelectedMunicipality(val);
+      activeSessionId = activeSessionId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+      saveCurrentSession('municipality_manual_set', { municipality: val });
+      showToast(`「${currentMunicipality}」をセットしました`, 'success');
+    });
+
+    // ジオロケーション（GPS）ボタン：現在地の継続的な監視を開始
+    let watchId = null;
+
+    geolocationBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        showToast('お使いのブラウザは位置情報サービスに対応していません', 'error');
+        return;
+      }
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      geoSpinner.classList.remove('hidden');
+      showToast('現在地の常時追跡を開始しました...', 'info');
+
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          latestGps = { latitude: lat, longitude: lon, accuracy: position.coords.accuracy, capturedAt: new Date().toISOString() };
+          
+          const gpsStatus = document.getElementById('log-gps-status');
+          if (gpsStatus) gpsStatus.textContent = `${lat.toFixed(5)}, ${lon.toFixed(5)} (追跡中)`;
+
+          try {
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=ja`);
+            const data = await response.json();
+
+            geoSpinner.classList.add('hidden');
+
+            if (data && data.address) {
+              const address = data.address;
+              let detected = address.city || address.town || address.village || address.suburb || address.county || '';
+
+              if (detected) {
+                // 市町村の変更を検知した場合
+                if (currentMunicipality !== detected) {
+                  updateSelectedMunicipality(detected);
+                  activeSessionId = activeSessionId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+                  saveCurrentSession('gps_location_updated', { latitude: lat, longitude: lon, accuracy: position.coords.accuracy });
+                  showToast(`エリア切り替え検知: ${detected}`, 'info');
+
+                  // APIキーがあれば自動で生成＆読み上げを開始
+                  const apiKey = apiKeyInput.value.trim();
+                  if (apiKey) {
+                    showToast(`「${detected}」のラジオ原稿生成・再生を自動開始します`, 'success');
+                    generateScript();
+                  } else {
+                    showToast(`「${detected}」に切り替わりました。Gemini APIキーを設定すると自動でラジオ生成が開始されます`, 'info');
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            geoSpinner.classList.add('hidden');
+            console.warn('逆ジオコーディング失敗:', err);
+          }
+        },
+        (error) => {
+          geoSpinner.classList.add('hidden');
+          let errorMsg = '位置情報の取得に失敗しました。';
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMsg = '位置情報の利用が許可されていません。';
+          }
+          showToast(errorMsg, 'error');
+        }, 
+        { 
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+
+      geolocationBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs text-lg animate-spin"></i><span>GPS追跡中...</span>';
+    });
+
+    // --- Gemini API 原稿生成処理 ---
+    async function generateScript() {
+      if (isGenerating) return;
+
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        showToast('Gemini APIキーを入力してください', 'error');
+        apiKeyInput.focus();
+        return;
+      }
+
+      if (!currentMunicipality) {
+        showToast('市町村名を選択してください', 'error');
+        return;
+      }
+
+      isGenerating = true;
+      localStorage.setItem('hokkaido_gemini_key', apiKey);
+      activeSessionId = (crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`);
+      currentRawScript = '';
+
+      stopSpeech();
+
+      generateBtn.disabled = true;
+      generateBtn.classList.add('opacity-50');
+      generationStatus.classList.remove('hidden');
+
+      const theme = scriptThemeSelect.value;
+
+      const systemPrompt = `あなたは北海道ドライブ専門のラジオ番組プロデューサー兼構成作家です。
+ユーザーが指定する北海道の市町村について、2人のラジオパーソナリティによる約5分間相当（文字数2500~3000文字程度）の生き生きとした対話台本を作成してください。
+
+【パーソナリティ】
+- A (ナビゲーター): 北海道の地理・歴史・文化に詳しい物知りガイド。丁寧で落ち着いたトーン。
+- B (パートナー): 好奇心旺盛なドライブ旅行者。リアクションが良く、素朴な疑問や食べ物への興味を示す。
+
+【出力フォーマット】
+以下のように、各発言を行ごとに「A: 発言内容」または「B: 発言内容」の形式で出力してください。余計な前置き文やト書き（笑）などの装飾は
+読み上げに支障が出るため最小限にし、発言のみをプレーンテキストで出力してください。
+
+例:
+A: みなさんこんにちは！ドライブラジオナビゲーターのAです。
+B: こんにちは！Bです。今日のドライブ目的地はどこですか？
+A: 今日は北海道の美味しい水と大自然が魅力の東川町をご案内します！
+
+【盛り込む内容】
+- 市町村の位置や特徴
+- 定番・穴場の観光スポット
+- ご当地グルメや名物
+- 歴史や思わず納得するディープなトリビアやあまり知られていないうんちく`;
+
+      const userPrompt = `対象市町村: 北海道${currentMunicipality}\n重視するテーマ: ${theme}`;
+
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `HTTP Status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!generatedText) {
+          throw new Error('生成結果が空でした');
+        }
+
+        currentRawScript = generatedText;
+        parseAndRenderScript(generatedText);
+        await saveCurrentSession('script_generated', { characterCount: generatedText.length, lineCount: scriptLines.length });
+        showToast('ラジオ原稿の生成が完了しました！', 'success');
+
+        document.getElementById('step-2-badge').className = 'py-2.5 rounded-xl border-2 border-hokkaido-sky bg-hokkaido-sky text-white transition-all shadow-sm';
+        document.getElementById('step-3-badge').className = 'py-2.5 rounded-xl border-2 border-hokkaido-forest bg-hokkaido-forest text-white transition-all shadow-sm';
+
+        // 原稿生成完了後、自動でラジオ読み上げをスタート
+        startSpeech();
+
+      } catch (err) {
+        console.error(err);
+        showToast(`エラーが発生しました: ${err.message}`, 'error');
+      } finally {
+        isGenerating = false;
+        generateBtn.disabled = false;
+        generateBtn.classList.remove('opacity-50');
+        generationStatus.classList.add('hidden');
+      }
+    }
+
+    generateBtn.addEventListener('click', generateScript);
+
+    // --- 台本テキストのパース処理 ---
+    function parseAndRenderScript(text) {
+      const rawLines = text.split('\n');
+      scriptLines = [];
+
+      rawLines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const match = trimmed.match(/^(A|B|ナビゲーターA|パートナーB|パーソナリティA|パーソナリティB)[\:\：\s]\s*(.+)$/i);
+        if (match) {
+          let speakerKey = match[1].toUpperCase();
+          if (speakerKey.includes('A')) speakerKey = 'A';
+          if (speakerKey.includes('B')) speakerKey = 'B';
+          
+          scriptLines.push({
+            speaker: speakerKey,
+            text: match[2].trim()
+          });
+        } else {
+          if (scriptLines.length > 0) {
+            scriptLines[scriptLines.length - 1].text += ' ' + trimmed;
+          } else {
+            scriptLines.push({ speaker: 'A', text: trimmed });
+          }
+        }
+      });
+
+      renderScriptList();
+      currentLineIndex = 0;
+      updateProgress();
+
+      playBtn.disabled = false;
+      stopBtn.disabled = false;
+    }
+
+    function renderScriptList() {
+      dialogueContainer.innerHTML = '';
+      scriptLineCount.textContent = `${scriptLines.length} 行`;
+
+      scriptLines.forEach((item, index) => {
+        const lineCard = document.createElement('div');
+        lineCard.id = `line-${index}`;
+        lineCard.className = `p-3 rounded-xl border transition-all duration-200 cursor-pointer flex gap-3 ${
+          item.speaker === 'A' 
+            ? 'bg-blue-50/70 border-blue-100 hover:border-hokkaido-sky' 
+            : 'bg-orange-50/70 border-orange-100 hover:border-hokkaido-accent'
+        }`;
+
+        lineCard.onclick = () => {
+          jumpToLine(index);
+        };
+
+        const avatar = document.createElement('div');
+        avatar.className = `w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+          item.speaker === 'A' ? 'bg-hokkaido-sky text-white' : 'bg-hokkaido-accent text-white'
+        }`;
+        avatar.textContent = item.speaker;
+
+        const content = document.createElement('div');
+        content.className = 'flex-1 space-y-0.5';
+
+        const name = document.createElement('div');
+        name.className = `text-xs font-bold ${item.speaker === 'A' ? 'text-hokkaido-sky' : 'text-hokkaido-accent'}`;
+        name.textContent = item.speaker === 'A' ? 'ナビゲーター A' : 'パートナー B';
+
+        const body = document.createElement('p');
+        body.className = 'text-sm text-gray-800 leading-relaxed';
+        body.textContent = item.text;
+
+        content.appendChild(name);
+        content.appendChild(body);
+        lineCard.appendChild(avatar);
+        lineCard.appendChild(content);
+
+        dialogueContainer.appendChild(lineCard);
+      });
+    }
+
+    // --- Web Speech API (音声合成) ---
+    function getJapaneseVoice() {
+      const voices = speechSynth.getVoices();
+      return voices.find(v => v.lang.includes('ja') || v.lang.includes('JP')) || null;
+    }
+
+    if (speechSynth.onvoiceschanged !== undefined) {
+      speechSynth.onvoiceschanged = getJapaneseVoice;
+    }
+
+    function speakCurrentLine() {
+      if (currentLineIndex >= scriptLines.length) {
+        stopSpeech();
+        showToast('ラジオの読み上げが終了しました！', 'success');
+        return;
+      }
+
+      highlightLine(currentLineIndex);
+      updateProgress();
+      saveCurrentSession('speech_line_started', { speaker: scriptLines[currentLineIndex]?.speaker, text: scriptLines[currentLineIndex]?.text });
+
+      const item = scriptLines[currentLineIndex];
+      const utterance = new SpeechSynthesisUtterance(item.text);
+
+      utterance.lang = 'ja-JP';
+      const jpVoice = getJapaneseVoice();
+      if (jpVoice) utterance.voice = jpVoice;
+
+      if (item.speaker === 'A') {
+        utterance.pitch = parseFloat(pitchA.value);
+        utterance.rate = parseFloat(rateA.value);
+      } else {
+        utterance.pitch = parseFloat(pitchB.value);
+        utterance.rate = parseFloat(rateB.value);
+      }
+
+      utterance.onend = () => {
+        if (isSpeaking && !isPaused) {
+          currentLineIndex++;
+          speakCurrentLine();
+        }
+      };
+
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        if (isSpeaking) {
+          currentLineIndex++;
+          speakCurrentLine();
+        }
+      };
+
+      currentUtterance = utterance;
+      speechSynth.speak(utterance);
+    }
+
+    function highlightLine(index) {
+      document.querySelectorAll('#dialogue-container > div').forEach(el => {
+        el.classList.remove('dialogue-active', 'ring-2', 'ring-hokkaido-sky', 'bg-white');
+      });
+
+      const activeEl = document.getElementById(`line-${index}`);
+      if (activeEl) {
+        activeEl.classList.add('dialogue-active', 'ring-2', 'ring-hokkaido-sky', 'bg-white');
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function updateProgress() {
+      const total = scriptLines.length;
+      if (total === 0) {
+        progressBar.style.width = '0%';
+        progressText.textContent = '0 / 0 行';
+        return;
+      }
+      const percent = Math.round((currentLineIndex / total) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = `${currentLineIndex + 1} / ${total} 行 (${percent}%)`;
+    }
+
+    function startSpeech() {
+      if (scriptLines.length === 0) return;
+
+      if (isPaused) {
+        speechSynth.resume();
+        isPaused = false;
+        isSpeaking = true;
+        saveCurrentSession('speech_resumed');
+        playBtn.disabled = true;
+        pauseBtn.disabled = false;
+        return;
+      }
+
+      speechSynth.cancel();
+      isSpeaking = true;
+      isPaused = false;
+      saveCurrentSession('speech_started');
+
+      playBtn.disabled = true;
+      pauseBtn.disabled = false;
+
+      speakCurrentLine();
+    }
+
+    function pauseSpeech() {
+      if (speechSynth.speaking && !isPaused) {
+        speechSynth.pause();
+        isPaused = true;
+        saveCurrentSession('speech_paused');
+        playBtn.disabled = false;
+        pauseBtn.disabled = true;
+      }
+    }
+
+    function stopSpeech() {
+      speechSynth.cancel();
+      if (isSpeaking || isPaused) saveCurrentSession('speech_stopped');
+      isSpeaking = false;
+      isPaused = false;
+      currentLineIndex = 0;
+      updateProgress();
+
+      playBtn.disabled = scriptLines.length === 0;
+      pauseBtn.disabled = true;
+
+      document.querySelectorAll('#dialogue-container > div').forEach(el => {
+        el.classList.remove('dialogue-active', 'ring-2', 'ring-hokkaido-sky', 'bg-white');
+      });
+    }
+
+    function jumpToLine(index) {
+      stopSpeech();
+      currentLineIndex = index;
+      startSpeech();
+    }
+
+    playBtn.addEventListener('click', startSpeech);
+    pauseBtn.addEventListener('click', pauseSpeech);
+    stopBtn.addEventListener('click', stopSpeech);
+
+  </script>
+</body>
+</html>
