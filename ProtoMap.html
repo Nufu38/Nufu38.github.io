@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シンプル目的地ナビ</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { display: flex; flex-direction: column; height: 100vh; }
+    
+    /* 操作パネル */
+    #controls {
+      padding: 12px;
+      background: #2c3e50;
+      color: white;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      z-index: 1000;
+    }
+    input {
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      flex: 1;
+      min-width: 150px;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-gps { background: #27ae60; color: white; }
+    .btn-search { background: #3498db; color: white; }
+    
+    /* メインエリア（地図と案内パネル） */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    #map { flex: 2; height: 100%; }
+    #sidebar {
+      flex: 1;
+      max-width: 350px;
+      background: #f8f9fa;
+      border-left: 1px solid #ddd;
+      overflow-y: auto;
+      padding: 15px;
+    }
+    .summary {
+      background: #e8f4fd;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-weight: bold;
+      color: #2980b9;
+    }
+    .step-item {
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    .step-dist { color: #7f8c8d; font-size: 12px; }
+
+    /* スマホ対応 */
+    @media (max-width: 768px) {
+      #main { flex-direction: column; }
+      #sidebar { max-width: 100%; height: 35%; border-left: none; border-top: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <button class="btn-gps" onclick="setCurrentLocation()">📍 現在地</button>
+    <input type="text" id="start" placeholder="出発地（例: 札幌駅）">
+    <input type="text" id="end" placeholder="目的地（例: 新千歳空港）">
+    <button class="btn-search" onclick="calculateRoute()">ルート検索</button>
+  </div>
+
+  <div id="main">
+    <div id="map"></div>
+    <div id="sidebar">
+      <div id="summary" class="summary">出発地と目的地を入力して検索してください。</div>
+      <div id="directions"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. 地図の初期化（初期位置：札幌周辺）
+    const map = L.map('map').setView([43.0686, 141.3508], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let startCoords = null;
+    let endCoords = null;
+    let routeLayer = null;
+    let markers = [];
+
+    // 2. GPSで現在地を取得
+    function setCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert("お使いのブラウザは位置情報に対応していません。");
+        return;
+      }
+      document.getElementById('start').value = "現在地を取得中...";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          startCoords = [pos.coords.latitude, pos.coords.longitude];
+          document.getElementById('start').value = `${startCoords[0].toFixed(5)}, ${startCoords[1].toFixed(5)}`;
+          map.setView(startCoords, 15);
+        },
+        (err) => {
+          alert("現在地の取得に失敗しました: " + err.message);
+          document.getElementById('start').value = "";
+        }
+      );
+    }
+
+    // 3. 住所・施設名から緯度経度を取得（Nominatim API）
+    async function geocode(query) {
+      // "緯度, 経度" の直接入力かチェック
+      const coordMatch = query.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+      if (coordMatch) {
+        return [parseFloat(coordMatch[1]), parseFloat(coordMatch[2])];
+      }
+
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.length === 0) throw new Error(`「${query}」が見つかりませんでした。`);
+      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    }
+
+    // 4. ルート検索と描画（OSRM API）
+    async function calculateRoute() {
+      const startInput = document.getElementById('start').value.trim();
+      const endInput = document.getElementById('end').value.trim();
+      if (!startInput || !endInput) {
+        alert("出発地と目的地を入力してください。");
+        return;
+      }
+
+      const summaryEl = document.getElementById('summary');
+      const directionsEl = document.getElementById('directions');
+      summaryEl.textContent = "ルートを検索中...";
+      directionsEl.innerHTML = "";
+
+      try {
+        startCoords = await geocode(startInput);
+        endCoords = await geocode(endInput);
+
+        // OSRMは [経度, 緯度] の順で指定する
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords[1]},${startCoords[0]};${endCoords[1]},${endCoords[0]}?overview=full&geometries=geojson&steps=true`;
+        const res = await fetch(osrmUrl);
+        const data = await res.json();
+
+        if (data.code !== 'Ok') throw new Error("ルートが見つかりませんでした。");
+
+        const route = data.routes[0];
+
+        // 既存のマーカーとルート線を削除
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+        if (routeLayer) map.removeLayer(routeLayer);
+
+        // マーカーとルート線を地図に追加
+        markers.push(L.marker(startCoords).addTo(map).bindPopup("出発地"));
+        markers.push(L.marker(endCoords).addTo(map).bindPopup("目的地"));
+        routeLayer = L.geoJSON(route.geometry, {
+          style: { color: '#3498db', weight: 6, opacity: 0.8 }
+        }).addTo(map);
+
+        map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
+
+        // 総距離と所要時間の表示
+        const distKm = (route.distance / 1000).toFixed(1);
+        const durationMin = Math.round(route.duration / 60);
+        summaryEl.textContent = `総距離: ${distKm} km ／ 所要時間: 約 ${durationMin} 分`;
+
+        // 案内ステップの生成
+        const steps = route.legs[0].steps;
+        steps.forEach((step, index) => {
+          const div = document.createElement('div');
+          div.className = 'step-item';
+          const instruction = translateInstruction(step.maneuver);
+          const roadName = step.name ? `（${step.name}）` : '';
+          div.innerHTML = `
+            <strong>${index + 1}. ${instruction}</strong> ${roadName}<br>
+            <span class="step-dist">${Math.round(step.distance)} m 進む</span>
+          `;
+          directionsEl.appendChild(div);
+        });
+
+      } catch (error) {
+        summaryEl.textContent = "エラーが発生しました";
+        alert(error.message);
+      }
+    }
+
+    // 英語の方向指示を簡易的に日本語化
+    function translateInstruction(maneuver) {
+      const type = maneuver.type;
+      const mod = maneuver.modifier || '';
+      if (type === 'depart') return '出発';
+      if (type === 'arrive') return '目的地に到着';
+      if (mod.includes('left')) return '左折';
+      if (mod.includes('right')) return '右折';
+      if (mod.includes('straight')) return '直進';
+      if (type === 'roundabout') return 'ロータリー進入';
+      return '道なりに進む';
+    }
+  </script>
+</body>
+</html>
