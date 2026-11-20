@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>リアルタイム追従ナビ</title>
+  
+  <!-- Leaflet (地図ライブラリ) のCSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    /* 地図を画面いっぱいに表示 */
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* 上部のステータスバー */
+    #status-bar {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 10px 20px;
+      border-radius: 30px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+      backdrop-filter: blur(5px);
+      white-space: nowrap;
+    }
+
+    .status-item span {
+      color: #007bff;
+      font-size: 16px;
+    }
+
+    /* 下部のコントロールボタン */
+    #controls {
+      position: absolute;
+      bottom: 30px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: bold;
+      border: none;
+      border-radius: 50px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #btn-follow {
+      background-color: #007bff;
+      color: white;
+    }
+
+    #btn-follow.off {
+      background-color: #6c757d;
+      color: #f8f9fa;
+    }
+
+    #btn-clear {
+      background-color: white;
+      color: #dc3545;
+    }
+
+    /* 現在地マーカーのアニメーション（青いパルス） */
+    .current-location-marker {
+      background-color: #007bff;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 123, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 情報表示パネル -->
+  <div id="status-bar">
+    <div class="status-item">速度: <span id="speed">0</span> km/h</div>
+    <div class="status-item">精度: ±<span id="accuracy">-</span> m</div>
+  </div>
+
+  <!-- 地図本体 -->
+  <div id="map"></div>
+
+  <!-- 操作ボタン -->
+  <div id="controls">
+    <button id="btn-follow">追従モード: ON</button>
+    <button id="btn-clear">軌跡をクリア</button>
+  </div>
+
+  <!-- Leaflet のJavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // 1. 地図の初期化（初期位置は仮で札幌駅周辺に設定）
+    const map = L.map('map', {
+      zoomControl: false // ズームボタンをスッキリさせるため非表示（ピンチ操作やホイールでズーム可能）
+    }).setView([43.0686, 141.3508], 16);
+
+    // OpenStreetMapのタイル（地図画像）を読み込み
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // 状態管理用の変数
+    let isFollowing = true; // 自動追従フラグ
+    let currentMarker = null; // 現在地ピン
+    let accuracyCircle = null; // GPS誤差範囲の円
+    let pathCoordinates = []; // 移動した座標の履歴
+    let pathPolyline = L.polyline([], { color: '#007bff', weight: 5, opacity: 0.7 }).addTo(map); // 軌跡の線
+
+    // UI要素の取得
+    const speedEl = document.getElementById('speed');
+    const accuracyEl = document.getElementById('accuracy');
+    const btnFollow = document.getElementById('btn-follow');
+    const btnClear = document.getElementById('btn-clear');
+
+    // カスタムアイコン（青い丸）の作成
+    const userIcon = L.divIcon({
+      className: 'current-location-marker',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    });
+
+    // 2. 地図を手動でドラッグしたら自動追従をOFFにする
+    map.on('dragstart', () => {
+      if (isFollowing) {
+        isFollowing = false;
+        updateFollowButton();
+      }
+    });
+
+    // 追従ボタンのクリックイベント
+    btnFollow.addEventListener('click', () => {
+      isFollowing = !isFollowing;
+      updateFollowButton();
+      // ONに戻した瞬間、即座に現在地へ移動
+      if (isFollowing && currentMarker) {
+        map.panTo(currentMarker.getLatLng());
+      }
+    });
+
+    // 軌跡クリアボタンのクリックイベント
+    btnClear.addEventListener('click', () => {
+      pathCoordinates = [];
+      pathPolyline.setLatLngs([]);
+    });
+
+    function updateFollowButton() {
+      if (isFollowing) {
+        btnFollow.textContent = '追従モード: ON';
+        btnFollow.classList.remove('off');
+      } else {
+        btnFollow.textContent = '追従モード: OFF (再開)';
+        btnFollow.classList.add('off');
+      }
+    }
+
+    // 3. 位置情報の継続的な取得（watchPosition）
+    if ("geolocation" in navigator) {
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const accuracy = Math.round(position.coords.accuracy);
+          // speedは m/s で返ってくるため、km/h に変換（取得できない場合は0）
+          const speedKmh = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
+
+          const latLng = [lat, lng];
+
+          // ステータス表示の更新
+          speedEl.textContent = speedKmh;
+          accuracyEl.textContent = accuracy;
+
+          // 初回取得時：マーカーと誤差円を作成
+          if (!currentMarker) {
+            currentMarker = L.marker(latLng, { icon: userIcon }).addTo(map);
+            accuracyCircle = L.circle(latLng, {
+              radius: accuracy,
+              color: '#007bff',
+              fillColor: '#007bff',
+              fillOpacity: 0.15,
+              weight: 1
+            }).addTo(map);
+            map.setView(latLng, 17); // 初回はズームレベル17で中心へ
+          } else {
+            // 2回目以降：位置を更新
+            currentMarker.setLatLng(latLng);
+            accuracyCircle.setLatLng(latLng);
+            accuracyCircle.setRadius(accuracy);
+          }
+
+          // 移動軌跡の追加
+          pathCoordinates.push(latLng);
+          pathPolyline.setLatLngs(pathCoordinates);
+
+          // 自動追従がONなら地図の中心を現在地へ滑らかに移動
+          if (isFollowing) {
+            map.panTo(latLng);
+          }
+        },
+        (error) => {
+          console.error("位置情報エラー:", error);
+          alert("位置情報を取得できませんでした。端末の位置情報設定とブラウザの権限を確認してください。");
+        },
+        {
+          enableHighAccuracy: true, // GPSを優先して高精度で取得
+          maximumAge: 0,            // キャッシュを使わず常に最新の位置を取得
+          timeout: 10000            // 10秒でタイムアウト
+        }
+      );
+    } else {
+      alert("お使いのブラウザは位置情報（Geolocation API）に対応していません。");
+    }
+  </script>
+</body>
+</html>
