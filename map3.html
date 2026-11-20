@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>リアルタイム追従ナビ（検索機能付き）</title>
+  
+  <!-- Leaflet (地図ライブラリ) のCSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* 上部UIコンテナ（検索バー＋ステータスバー） */
+    #top-ui {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 92%;
+      max-width: 450px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* 検索ボックス周り */
+    #search-container {
+      position: relative;
+      display: flex;
+      background: white;
+      border-radius: 25px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+      padding: 4px 6px 4px 16px;
+      align-items: center;
+    }
+
+    #search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      background: transparent;
+      color: #333;
+    }
+
+    #btn-search {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: none;
+    }
+
+    #btn-search:disabled {
+      background-color: #a0c4ff;
+    }
+
+    /* 検索結果の候補リスト */
+    #search-results {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+      z-index: 1001;
+    }
+
+    #search-results li {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+      color: #333;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    #search-results li:last-child {
+      border-bottom: none;
+    }
+
+    #search-results li:hover {
+      background-color: #f0f7ff;
+    }
+
+    /* ステータスバー */
+    #status-bar {
+      align-self: center;
+      background: rgba(255, 255, 255, 0.94);
+      padding: 8px 18px;
+      border-radius: 30px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      gap: 15px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+      backdrop-filter: blur(5px);
+      white-space: nowrap;
+    }
+
+    .status-item span {
+      color: #007bff;
+      font-size: 15px;
+    }
+
+    #distance-item span {
+      color: #dc3545;
+    }
+
+    /* 下部のコントロールボタン */
+    #controls {
+      position: absolute;
+      bottom: 30px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: bold;
+      border: none;
+      border-radius: 50px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #btn-follow {
+      background-color: #007bff;
+      color: white;
+    }
+
+    #btn-follow.off {
+      background-color: #6c757d;
+      color: #f8f9fa;
+    }
+
+    #btn-clear-dest {
+      background-color: #dc3545;
+      color: white;
+      display: none;
+    }
+
+    #btn-clear-path {
+      background-color: white;
+      color: #333;
+    }
+
+    /* 現在地マーカー */
+    .current-location-marker {
+      background-color: #007bff;
+      border: 3px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 123, 255, 0.8);
+    }
+
+    /* 目的地マーカー */
+    .destination-marker {
+      background-color: #dc3545;
+      border: 3px solid white;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 上部UI（検索＆ステータス） -->
+  <div id="top-ui">
+    <div id="search-container">
+      <input type="text" id="search-input" placeholder="目的地・住所を検索（例: 札幌駅）" autocomplete="off">
+      <button id="btn-search">検索</button>
+      <ul id="search-results"></ul>
+    </div>
+
+    <div id="status-bar">
+      <div class="status-item">速度: <span id="speed">0</span> km/h</div>
+      <div class="status-item" id="distance-item" style="display: none;">残り: <span id="distance">-</span></div>
+      <div class="status-item">精度: ±<span id="accuracy">-</span> m</div>
+    </div>
+  </div>
+
+  <!-- 地図本体 -->
+  <div id="map"></div>
+
+  <!-- 操作ボタン -->
+  <div id="controls">
+    <button id="btn-follow" class="ctrl-btn">追従モード: ON</button>
+    <button id="btn-clear-dest" class="ctrl-btn">目的地を解除</button>
+    <button id="btn-clear-path" class="ctrl-btn">軌跡をクリア</button>
+  </div>
+
+  <!-- Leaflet のJavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // 1. 地図の初期化
+    const map = L.map('map', { zoomControl: false }).setView([43.0686, 141.3508], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // 状態管理用の変数
+    let isFollowing = true;
+    let currentLatLng = null;
+    let currentMarker = null;
+    let accuracyCircle = null;
+    
+    // 軌跡用
+    let pathCoordinates = [];
+    let pathPolyline = L.polyline([], { color: '#007bff', weight: 5, opacity: 0.7 }).addTo(map);
